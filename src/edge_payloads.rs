@@ -205,7 +205,7 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct EdgeBlockResponse {
+pub struct EdgeBlockResponse {
     pub header: EdgeBlockResponseHeader,
     pub _txns: Vec<EdgeResponseTxn>,
     pub _uncles: Vec<EdgeBlockResponseHeader>,
