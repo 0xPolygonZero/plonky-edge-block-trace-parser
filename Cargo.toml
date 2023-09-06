@@ -7,3 +7,30 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ethereum-types = "0.14.1"
+eth_trie_utils = "0.6.0"
+hex = "0.4.3"
+keccak-hash = "0.10.0"
+log = "0.4.19"
+plonky2_evm = { git = "https://github.com/mir-protocol/plonky2.git", rev = "dd3b61a3618b7031973a9a9a0f88203b2f3768fa" }
+rlp = "0.5.2"
+rlp-derive = "0.1.0"
+rust_decimal = "1.32.0"
+serde = "1.0.166"
+serde_with = {version = "3.0.0", features = ["base64"] }
+thiserror = "1.0.41"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+# TODO: Until `plonky2_evm` is on crates.io.
+[patch."https://github.com/mir-protocol/plonky2.git"]
+plonky2_evm = { git = "https://github.com/mir-protocol/plonky2.git?rev=dd3b61a3618b7031973a9a9a0f88203b2f3768fa" }
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git?rev=dd3b61a3618b7031973a9a9a0f88203b2f3768fa" }
+
+[patch.crates-io]
+# TODO: Remove `eth_trie_utils` patch once version `0.7.0` is released...
+eth_trie_utils = { git = "https://github.com/mir-protocol/eth_trie_utils.git", rev = "e9ec4ec2aa2ae976b7c699ef40c1ffc716d87ed5" }
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git?rev=dd3b61a3618b7031973a9a9a0f88203b2f3768fa" }
