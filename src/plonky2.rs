@@ -110,7 +110,6 @@ impl From<EdgeBlockResponse> for BlockMetadata {
             block_gaslimit: v.header.gas_limit.into(),
             block_chain_id: MATIC_CHAIN_ID.into(),
             block_base_fee: v.header.base_fee.into(),
-            block_gas_used: v.header.gas_used.into(),
             block_bloom,
         }
     }
@@ -647,4 +646,10 @@ pub struct TxnReceivedPayload {
 
     pub b_height: BlockHeight,
     pub txn_idx: TxnIdx,
+}
+
+impl TxnReceivedPayload {
+    pub fn get_txn_idx(&self) -> TxnIdx {
+        self.txn_idx
+    }
 }
