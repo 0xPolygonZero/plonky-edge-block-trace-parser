@@ -207,16 +207,16 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>
 #[derive(Clone, Debug)]
 pub struct EdgeBlockResponse {
     pub header: EdgeBlockResponseHeader,
-    pub _txns: Vec<EdgeResponseTxn>,
-    pub _uncles: Vec<EdgeBlockResponseHeader>,
+    pub txns: Vec<EdgeResponseTxn>,
+    pub uncles: Vec<EdgeBlockResponseHeader>,
 }
 
 impl Decodable for EdgeBlockResponse {
     fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
         Ok(Self {
             header: rlp.val_at(0)?,
-            _txns: decode_txn_stream(rlp.at(1)?.into_iter())?,
-            _uncles: rlp.list_at(2)?,
+            txns: decode_txn_stream(rlp.at(1)?.into_iter())?,
+            uncles: rlp.list_at(2)?,
         })
     }
 }
@@ -296,15 +296,15 @@ struct TxnType(u8);
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct LegacyTxn {
-    _nonce: u64,
-    _gas_price: U256,
-    _gas: u64,
-    _to: Vec<u8>,
-    _value: U256,
-    _input: Vec<u8>,
-    _v: U256,
-    _r: U256,
-    _s: U256,
+    pub nonce: u64,
+    pub gas_price: U256,
+    pub gas: u64,
+    pub to: Vec<u8>,
+    pub value: U256,
+    pub input: Vec<u8>,
+    pub v: U256,
+    pub r: U256,
+    pub s: U256,
 }
 
 impl From<LegacyTxn> for EdgeResponseTxn {
@@ -315,16 +315,16 @@ impl From<LegacyTxn> for EdgeResponseTxn {
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct StateTxn {
-    _nonce: u64,
-    _gas_price: u64,
-    _gas: u64,
-    _to: Vec<u8>,
-    _value: U256,
-    _input: Vec<u8>,
-    _v: U256,
-    _r: U256,
-    _s: U256,
-    _from: H160,
+    pub nonce: u64,
+    pub gas_price: u64,
+    pub gas: u64,
+    pub to: Vec<u8>,
+    pub value: U256,
+    pub input: Vec<u8>,
+    pub v: U256,
+    pub r: U256,
+    pub s: U256,
+    pub from: H160,
 }
 
 impl From<StateTxn> for EdgeResponseTxn {
@@ -335,18 +335,18 @@ impl From<StateTxn> for EdgeResponseTxn {
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct DynamicTxn {
-    _chain_id: u64,
-    _nonce: u64,
-    _gas_tip: u64,
-    _gas_fee: u64,
-    _gas: u64,
-    _to: Vec<u8>,
-    _value: U256,
-    _input: Vec<u8>,
-    _access_list: Vec<u8>,
-    _v: U256,
-    _r: U256,
-    _s: U256,
+    pub chain_id: u64,
+    pub nonce: u64,
+    pub gas_tip: u64,
+    pub gas_fee: u64,
+    pub gas: u64,
+    pub to: Vec<u8>,
+    pub value: U256,
+    pub input: Vec<u8>,
+    pub access_list: Vec<u8>,
+    pub v: U256,
+    pub r: U256,
+    pub s: U256,
 }
 
 impl From<DynamicTxn> for EdgeResponseTxn {
