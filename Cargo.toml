@@ -18,6 +18,9 @@ rlp-derive = "0.1.0"
 rust_decimal = "1.32.0"
 serde = "1.0.166"
 serde_with = {version = "3.0.0", features = ["base64"] }
+
+# TODO: Replace!
+serde_json = "1.0.106"
 thiserror = "1.0.41"
 
 [patch.crates-io]

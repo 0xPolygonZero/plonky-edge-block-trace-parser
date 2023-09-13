@@ -9,6 +9,7 @@ use serde::{
     de::{Error, Visitor},
     Deserialize, Deserializer,
 };
+use serde_json::Number;
 use serde_with::{base64::Base64, serde_as, DefaultOnNull, FromInto, TryFromInto};
 
 use crate::types::{StorageVal, TxnTraces};
@@ -130,11 +131,11 @@ pub struct TxnDelta {
 }
 
 #[derive(Debug, Deserialize)]
-struct U256DecWrapper(String);
+struct U256DecWrapper(Number);
 
 impl From<U256DecWrapper> for U256 {
     fn from(v: U256DecWrapper) -> U256 {
-        let s = v.0;
+        let s = v.0.to_string();
 
         // Sometimes the numbers can be in the format of `e+x`, and `from_dec_str`
         // doesn't support these.
