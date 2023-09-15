@@ -4,18 +4,18 @@ use std::{
     str::FromStr,
 };
 
-use eth_trie_utils::partial_trie::PartialTrie;
 use eth_trie_utils::{
     nibbles::{Nibble, Nibbles},
     partial_trie::HashedPartialTrie,
     trie_subsets::create_trie_subset,
 };
+use eth_trie_utils::{partial_trie::PartialTrie, trie_ops::ValOrHash};
 use ethereum_types::{Address, H256, U256};
 use keccak_hash::keccak;
 use log::debug;
 use plonky2_evm::{
     generation::{mpt::AccountRlp, TrieInputs},
-    proof::{BlockMetadata, TrieRoots},
+    proof::{BlockMetadata, ExtraBlockData, TrieRoots},
 };
 use rlp::{decode, encode, Rlp};
 use serde::{Deserialize, Serialize};
@@ -53,7 +53,7 @@ pub enum TraceParsingError {
 
     // TODO: Make this error nicer...
     #[error(
-        "Non-existant account addr given when creating a sub partial trie from the base state trie"
+        "Non-existent account addr given when creating a sub partial trie from the base state trie"
     )]
     NonExistentAcctAddrsCreatingSubPartialTrie,
 
@@ -110,6 +110,7 @@ impl From<EdgeBlockResponse> for BlockMetadata {
             block_gaslimit: v.header.gas_limit.into(),
             block_chain_id: MATIC_CHAIN_ID.into(),
             block_base_fee: v.header.base_fee.into(),
+            block_gas_used: v.header.gas_used.into(),
             block_bloom,
         }
     }
@@ -197,7 +198,7 @@ fn process_txn_deltas(
     }
 
     let nodes_used_by_txn = NodesUsedByTxn {
-        state: Vec::from_iter(state.into_iter()),
+        state: Vec::from_iter(state),
         storage,
     };
 
@@ -226,6 +227,9 @@ impl EdgeBlockTrace {
         let (mut block_tries, mut addrs_to_code) =
             self.construct_initial_tries_and_account_to_code_map(&c_hash_to_code)?;
 
+        let mut gas_used_before = 0;
+        let mut block_bloom_before = [U256::zero(); 8];
+
         self.txn_bytes_and_traces
             .into_iter()
             .enumerate()
@@ -239,6 +243,21 @@ impl EdgeBlockTrace {
                     &block_tries,
                     processed_txn_traces.nodes_used_by_txn,
                 )?;
+
+                println!("Base storage tries:");
+                for (acc_addr, trie) in block_tries.storage.iter() {
+                    let s_addrs: Vec<_> = trie
+                        .items()
+                        .map(|(k, v_or_h)| {
+                            let v_or_h_char = match v_or_h {
+                                ValOrHash::Val(_) => 'L',
+                                ValOrHash::Hash(_) => 'H',
+                            };
+                            format!("{} - {:x}", v_or_h_char, k)
+                        })
+                        .collect();
+                    println!("Storage trie for {:x}: {:?}", acc_addr, s_addrs);
+                }
 
                 for (a_addr, s_trie) in txn_partial_tries.storage_tries.iter() {
                     let base_s_root = block_tries
@@ -264,10 +283,23 @@ impl EdgeBlockTrace {
                     receipts_root: txn_trace_info.receipt_root,
                 };
 
+                let gas_used_after = gas_used_before + txn_trace_info.gas_used;
+
+                let deltas = ProofBeforeAndAfterDeltas {
+                    gas_used_before: gas_used_before.into(),
+                    gas_used_after: gas_used_after.into(),
+                    block_bloom_before,
+                    block_bloom_after: txn_trace_info.bloom,
+                };
+
+                gas_used_before = gas_used_after;
+                block_bloom_before = txn_trace_info.bloom;
+
                 let payload = TxnReceivedPayload {
                     signed_txn: txn_trace_info.txn,
                     tries: txn_partial_tries,
                     trie_roots_after,
+                    deltas,
                     contract_code: processed_txn_traces.contract_code,
                     b_height,
                     txn_idx,
@@ -638,6 +670,7 @@ pub struct TxnReceivedPayload {
     pub signed_txn: Vec<u8>,
     pub tries: TrieInputs,
     pub trie_roots_after: TrieRoots,
+    pub deltas: ProofBeforeAndAfterDeltas,
 
     /// Mapping between smart contract code hashes and the contract byte code.
     /// All account smart contracts that are invoked by this txn will have an
@@ -646,6 +679,38 @@ pub struct TxnReceivedPayload {
 
     pub b_height: BlockHeight,
     pub txn_idx: TxnIdx,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct ProofBeforeAndAfterDeltas {
+    pub gas_used_before: U256,
+    pub gas_used_after: U256,
+    pub block_bloom_before: [U256; 8],
+    pub block_bloom_after: [U256; 8],
+}
+
+impl From<ExtraBlockData> for ProofBeforeAndAfterDeltas {
+    fn from(v: ExtraBlockData) -> Self {
+        Self {
+            gas_used_before: v.gas_used_before,
+            gas_used_after: v.gas_used_after,
+            block_bloom_before: v.block_bloom_before,
+            block_bloom_after: v.block_bloom_after,
+        }
+    }
+}
+
+impl ProofBeforeAndAfterDeltas {
+    pub fn into_extra_block_data(self, txn_start: TxnIdx, txn_end: TxnIdx) -> ExtraBlockData {
+        ExtraBlockData {
+            txn_number_before: txn_start.into(),
+            txn_number_after: txn_end.into(),
+            gas_used_before: self.gas_used_before,
+            gas_used_after: self.gas_used_after,
+            block_bloom_before: self.block_bloom_before,
+            block_bloom_after: self.block_bloom_after,
+        }
+    }
 }
 
 impl TxnReceivedPayload {

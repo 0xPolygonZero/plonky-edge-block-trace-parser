@@ -64,6 +64,12 @@ pub struct TxnBytesAndTraces {
     /// The root of the receipt trie after the txn has been executed.
     pub receipt_root: H256,
 
+    // GasUsed is the amount of gas used by the transaction
+    pub gas_used: u64,
+
+    // Bloom is the bloom filter for the transaction
+    pub bloom: [U256; 8],
+
     #[serde(rename(deserialize = "delta"))]
     /// All deltas for the txn.
     pub traces: TxnTraces,
