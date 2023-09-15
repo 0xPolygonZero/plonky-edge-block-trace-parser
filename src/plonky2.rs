@@ -15,15 +15,15 @@ use keccak_hash::keccak;
 use log::debug;
 use plonky2_evm::{
     generation::{mpt::AccountRlp, TrieInputs},
-    proof::{BlockMetadata, ExtraBlockData, TrieRoots},
+    proof::{BlockMetadata, TrieRoots},
 };
+use plonky_block_proof_gen::proof_types::{ProofBeforeAndAfterDeltas, TxnProofGenIR};
 use rlp::{decode, encode, Rlp};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
     edge_payloads::{EdgeBlockResponse, EdgeBlockTrace},
-    types::{BlockHeight, HashedAccountAddr, StorageAddr, StorageVal, TxnIdx, TxnTraces},
+    types::{BlockHeight, HashedAccountAddr, StorageAddr, StorageVal, TxnTraces},
 };
 
 const MATIC_CHAIN_ID: usize = 2001;
@@ -213,7 +213,7 @@ impl EdgeBlockTrace {
     pub fn into_txn_proof_gen_payloads(
         mut self,
         b_height: BlockHeight,
-    ) -> TraceParsingResult<Vec<TxnReceivedPayload>> {
+    ) -> TraceParsingResult<Vec<TxnProofGenIR>> {
         let contract_code_accessed = self.extract_all_contract_bytecode_from_txn_traces();
 
         let mut c_hash_to_code = HashMap::from_iter(
@@ -295,7 +295,7 @@ impl EdgeBlockTrace {
                 gas_used_before = gas_used_after;
                 block_bloom_before = txn_trace_info.bloom;
 
-                let payload = TxnReceivedPayload {
+                let payload = TxnProofGenIR {
                     signed_txn: txn_trace_info.txn,
                     tries: txn_partial_tries,
                     trie_roots_after,
@@ -662,59 +662,4 @@ fn string_to_nibbles_even_nibble_fixed(s: &str) -> Nibbles {
     }
 
     n
-}
-
-/// State required to generate a transaction proof. Sent once per txn.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct TxnReceivedPayload {
-    pub signed_txn: Vec<u8>,
-    pub tries: TrieInputs,
-    pub trie_roots_after: TrieRoots,
-    pub deltas: ProofBeforeAndAfterDeltas,
-
-    /// Mapping between smart contract code hashes and the contract byte code.
-    /// All account smart contracts that are invoked by this txn will have an
-    /// entry present.
-    pub contract_code: HashMap<H256, Vec<u8>>,
-
-    pub b_height: BlockHeight,
-    pub txn_idx: TxnIdx,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct ProofBeforeAndAfterDeltas {
-    pub gas_used_before: U256,
-    pub gas_used_after: U256,
-    pub block_bloom_before: [U256; 8],
-    pub block_bloom_after: [U256; 8],
-}
-
-impl From<ExtraBlockData> for ProofBeforeAndAfterDeltas {
-    fn from(v: ExtraBlockData) -> Self {
-        Self {
-            gas_used_before: v.gas_used_before,
-            gas_used_after: v.gas_used_after,
-            block_bloom_before: v.block_bloom_before,
-            block_bloom_after: v.block_bloom_after,
-        }
-    }
-}
-
-impl ProofBeforeAndAfterDeltas {
-    pub fn into_extra_block_data(self, txn_start: TxnIdx, txn_end: TxnIdx) -> ExtraBlockData {
-        ExtraBlockData {
-            txn_number_before: txn_start.into(),
-            txn_number_after: txn_end.into(),
-            gas_used_before: self.gas_used_before,
-            gas_used_after: self.gas_used_after,
-            block_bloom_before: self.block_bloom_before,
-            block_bloom_after: self.block_bloom_after,
-        }
-    }
-}
-
-impl TxnReceivedPayload {
-    pub fn get_txn_idx(&self) -> TxnIdx {
-        self.txn_idx
-    }
 }
