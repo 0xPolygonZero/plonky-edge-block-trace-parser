@@ -329,7 +329,7 @@ impl EdgeBlockTrace {
         h_addr_to_contract_bytes
     }
 
-    pub fn rlp_edge_trie_nodes(edge_nodes: &HashMap<H256, Vec<u8>>) -> HashMap<Nibbles, Rlp> {
+    fn rlp_edge_trie_nodes(edge_nodes: &HashMap<H256, Vec<u8>>) -> HashMap<Nibbles, Rlp> {
         edge_nodes
             .iter()
             .map(|(a, v)| (Nibbles::from_h256_be(*a), Rlp::new(v)))
@@ -487,7 +487,7 @@ impl EdgeBlockTrace {
     }
 
     // Pretty inefficient, but we will worry about optimization as we need to later.
-    pub fn decode_edge_rlp_state_trie_nodes(
+    fn decode_edge_rlp_state_trie_nodes(
         rlped_nodes: &HashMap<Nibbles, Rlp>,
         root_node_hash: H256,
     ) -> HashedPartialTrie {

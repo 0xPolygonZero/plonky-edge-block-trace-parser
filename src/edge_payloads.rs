@@ -96,44 +96,44 @@ pub struct TxnBytesAndTraces {
 pub struct TxnDelta {
     /// Redundant and can safely be removed from the incoming payload. The
     /// address is already provided as the key in the deltas for a txn.
-    pub address: Address,
+    pub(crate) _address: Address,
 
     /// If the balance changed, then the new balance will appear here.
     #[serde_as(as = "Option<TryFromInto<U256DecWrapper>>")]
-    pub balance: Option<U256>,
+    pub(crate) balance: Option<U256>,
 
     /// If the nonce changed, then the new nonce will appear here;
     #[serde_as(as = "Option<TryFromInto<U256DecWrapper>>")]
-    pub nonce: Option<U256>,
+    pub(crate) nonce: Option<U256>,
 
     // TODO: Fight with `serde_as` some more and don't read in as a string initially...
     /// Account storage addresses that were mutated by the txn along with their
     /// new value.
-    pub storage: Option<HashMap<String, StorageVal>>,
+    pub(crate) storage: Option<HashMap<String, StorageVal>>,
 
     // No idea why we're given a map of addrs to empty HashSets, but...
     /// Account addresses that were only read by the txn.
     #[serde_as(as = "Option<FromInto<HashMapToVecWrapper<HashMap<String, u8>>>>")]
-    pub storage_read: Option<Vec<String>>,
+    pub(crate) storage_read: Option<Vec<String>>,
 
     /// If the account's contract bytecode changed during the txn, it will
     /// appear here.
     #[serde_as(as = "Option<Base64>")]
-    pub code: Option<Vec<u8>>,
+    pub(crate) code: Option<Vec<u8>>,
 
     /// The bytecode at this address was read (but not created).
     #[serde_as(as = "Option<Base64>")]
-    pub code_read: Option<Vec<u8>>,
+    pub(crate) code_read: Option<Vec<u8>>,
 
     /// We don't need this, but it's given anyways.
-    pub suicide: Option<bool>,
+    pub(crate) _suicide: Option<bool>,
 
     /// Not sure when this is set, but we don't need it.
-    pub touched: Option<bool>,
+    pub(crate) _touched: Option<bool>,
 
     /// Also not sure when this is set. If a delta appears for an account, then
     /// we can be sure it is a read.
-    pub read: Option<bool>,
+    pub(crate) _read: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -172,7 +172,7 @@ impl From<ByteString> for Vec<u8> {
 
 // Gross, but there is no Serde crate that can both parse a hex string with a
 // prefix and also deserialize from a `Vec<u8>`.
-pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
     struct PrefixHexStrVisitor();
 
     impl<'de> Visitor<'de> for PrefixHexStrVisitor {
@@ -213,39 +213,39 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>
 
 #[derive(Clone, Debug)]
 pub struct EdgeBlockResponse {
-    pub header: EdgeBlockResponseHeader,
-    pub txns: Vec<EdgeResponseTxn>,
-    pub uncles: Vec<EdgeBlockResponseHeader>,
+    pub(crate) header: EdgeBlockResponseHeader,
+    pub(crate) _txns: Vec<EdgeResponseTxn>,
+    pub(crate) _uncles: Vec<EdgeBlockResponseHeader>,
 }
 
 impl Decodable for EdgeBlockResponse {
     fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
         Ok(Self {
             header: rlp.val_at(0)?,
-            txns: decode_txn_stream(rlp.at(1)?.into_iter())?,
-            uncles: rlp.list_at(2)?,
+            _txns: decode_txn_stream(rlp.at(1)?.into_iter())?,
+            _uncles: rlp.list_at(2)?,
         })
     }
 }
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct EdgeBlockResponseHeader {
-    pub parent_hash: H256,
-    pub sha3_uncles: H256,
-    pub miner: Address,
-    pub state_root: H256,
-    pub tx_root: H256,
-    pub receipts_root: H256,
-    pub logs_bloom: Vec<U256>,
-    pub difficulty: u64,
-    pub number: u64,
-    pub gas_limit: u64,
-    pub gas_used: u64,
-    pub timestamp: u64,
-    pub extra_data: Vec<u8>,
-    pub mix_hash: H256,
-    pub nonce: Vec<u8>,
-    pub base_fee: u64,
+    pub(crate) _parent_hash: H256,
+    pub(crate) _sha3_uncles: H256,
+    pub(crate) miner: Address,
+    pub(crate) _state_root: H256,
+    pub(crate) _tx_root: H256,
+    pub(crate) _receipts_root: H256,
+    pub(crate) logs_bloom: Vec<U256>,
+    pub(crate) difficulty: u64,
+    pub(crate) number: u64,
+    pub(crate) gas_limit: u64,
+    pub(crate) gas_used: u64,
+    pub(crate) timestamp: u64,
+    pub(crate) _extra_data: Vec<u8>,
+    pub(crate) _mix_hash: H256,
+    pub(crate) _nonce: Vec<u8>,
+    pub(crate) base_fee: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -302,16 +302,16 @@ fn txn_stream_iter_next<'a>(rlp_iter: &'a mut RlpIterator) -> Result<Rlp<'a>, De
 struct TxnType(u8);
 
 #[derive(Clone, Debug, RlpDecodable)]
-pub struct LegacyTxn {
-    pub nonce: u64,
-    pub gas_price: U256,
-    pub gas: u64,
-    pub to: Vec<u8>,
-    pub value: U256,
-    pub input: Vec<u8>,
-    pub v: U256,
-    pub r: U256,
-    pub s: U256,
+struct LegacyTxn {
+    _nonce: u64,
+    _gas_price: U256,
+    _gas: u64,
+    _to: Vec<u8>,
+    _value: U256,
+    _input: Vec<u8>,
+    _v: U256,
+    _r: U256,
+    _s: U256,
 }
 
 impl From<LegacyTxn> for EdgeResponseTxn {
@@ -321,17 +321,17 @@ impl From<LegacyTxn> for EdgeResponseTxn {
 }
 
 #[derive(Clone, Debug, RlpDecodable)]
-pub struct StateTxn {
-    pub nonce: u64,
-    pub gas_price: u64,
-    pub gas: u64,
-    pub to: Vec<u8>,
-    pub value: U256,
-    pub input: Vec<u8>,
-    pub v: U256,
-    pub r: U256,
-    pub s: U256,
-    pub from: H160,
+struct StateTxn {
+    _nonce: u64,
+    _gas_price: u64,
+    _gas: u64,
+    _to: Vec<u8>,
+    _value: U256,
+    _input: Vec<u8>,
+    _v: U256,
+    _r: U256,
+    _s: U256,
+    _from: H160,
 }
 
 impl From<StateTxn> for EdgeResponseTxn {
@@ -341,19 +341,19 @@ impl From<StateTxn> for EdgeResponseTxn {
 }
 
 #[derive(Clone, Debug, RlpDecodable)]
-pub struct DynamicTxn {
-    pub chain_id: u64,
-    pub nonce: u64,
-    pub gas_tip: u64,
-    pub gas_fee: u64,
-    pub gas: u64,
-    pub to: Vec<u8>,
-    pub value: U256,
-    pub input: Vec<u8>,
-    pub access_list: Vec<u8>,
-    pub v: U256,
-    pub r: U256,
-    pub s: U256,
+struct DynamicTxn {
+    _chain_id: u64,
+    _nonce: u64,
+    _gas_tip: u64,
+    _gas_fee: u64,
+    _gas: u64,
+    _to: Vec<u8>,
+    _value: U256,
+    _input: Vec<u8>,
+    _access_list: Vec<u8>,
+    _v: U256,
+    _r: U256,
+    _s: U256,
 }
 
 impl From<DynamicTxn> for EdgeResponseTxn {
