@@ -302,7 +302,7 @@ fn txn_stream_iter_next<'a>(rlp_iter: &'a mut RlpIterator) -> Result<Rlp<'a>, De
 struct TxnType(u8);
 
 #[derive(Clone, Debug, RlpDecodable)]
-struct LegacyTxn {
+pub struct LegacyTxn {
     _nonce: u64,
     _gas_price: U256,
     _gas: u64,
@@ -321,7 +321,7 @@ impl From<LegacyTxn> for EdgeResponseTxn {
 }
 
 #[derive(Clone, Debug, RlpDecodable)]
-struct StateTxn {
+pub struct StateTxn {
     _nonce: u64,
     _gas_price: u64,
     _gas: u64,
@@ -341,7 +341,7 @@ impl From<StateTxn> for EdgeResponseTxn {
 }
 
 #[derive(Clone, Debug, RlpDecodable)]
-struct DynamicTxn {
+pub struct DynamicTxn {
     _chain_id: u64,
     _nonce: u64,
     _gas_tip: u64,
