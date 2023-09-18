@@ -213,39 +213,39 @@ fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D:
 
 #[derive(Clone, Debug)]
 pub struct EdgeBlockResponse {
-    pub(crate) header: EdgeBlockResponseHeader,
-    pub(crate) _txns: Vec<EdgeResponseTxn>,
-    pub(crate) _uncles: Vec<EdgeBlockResponseHeader>,
+    pub header: EdgeBlockResponseHeader,
+    pub txns: Vec<EdgeResponseTxn>,
+    pub uncles: Vec<EdgeBlockResponseHeader>,
 }
 
 impl Decodable for EdgeBlockResponse {
     fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
         Ok(Self {
             header: rlp.val_at(0)?,
-            _txns: decode_txn_stream(rlp.at(1)?.into_iter())?,
-            _uncles: rlp.list_at(2)?,
+            txns: decode_txn_stream(rlp.at(1)?.into_iter())?,
+            uncles: rlp.list_at(2)?,
         })
     }
 }
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct EdgeBlockResponseHeader {
-    pub(crate) _parent_hash: H256,
-    pub(crate) _sha3_uncles: H256,
-    pub(crate) miner: Address,
-    pub(crate) _state_root: H256,
-    pub(crate) _tx_root: H256,
-    pub(crate) _receipts_root: H256,
-    pub(crate) logs_bloom: Vec<U256>,
-    pub(crate) difficulty: u64,
-    pub(crate) number: u64,
-    pub(crate) gas_limit: u64,
-    pub(crate) gas_used: u64,
-    pub(crate) timestamp: u64,
-    pub(crate) _extra_data: Vec<u8>,
-    pub(crate) _mix_hash: H256,
-    pub(crate) _nonce: Vec<u8>,
-    pub(crate) base_fee: u64,
+    pub parent_hash: H256,
+    pub sha3_uncles: H256,
+    pub miner: Address,
+    pub state_root: H256,
+    pub tx_root: H256,
+    pub receipts_root: H256,
+    pub logs_bloom: Vec<U256>,
+    pub difficulty: u64,
+    pub number: u64,
+    pub gas_limit: u64,
+    pub gas_used: u64,
+    pub timestamp: u64,
+    pub extra_data: Vec<u8>,
+    pub mix_hash: H256,
+    pub nonce: Vec<u8>,
+    pub base_fee: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -303,15 +303,15 @@ struct TxnType(u8);
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct LegacyTxn {
-    _nonce: u64,
-    _gas_price: U256,
-    _gas: u64,
-    _to: Vec<u8>,
-    _value: U256,
-    _input: Vec<u8>,
-    _v: U256,
-    _r: U256,
-    _s: U256,
+    pub nonce: u64,
+    pub gas_price: U256,
+    pub gas: u64,
+    pub to: Vec<u8>,
+    pub value: U256,
+    pub input: Vec<u8>,
+    pub v: U256,
+    pub r: U256,
+    pub s: U256,
 }
 
 impl From<LegacyTxn> for EdgeResponseTxn {
@@ -322,16 +322,16 @@ impl From<LegacyTxn> for EdgeResponseTxn {
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct StateTxn {
-    _nonce: u64,
-    _gas_price: u64,
-    _gas: u64,
-    _to: Vec<u8>,
-    _value: U256,
-    _input: Vec<u8>,
-    _v: U256,
-    _r: U256,
-    _s: U256,
-    _from: H160,
+    pub nonce: u64,
+    pub gas_price: u64,
+    pub gas: u64,
+    pub to: Vec<u8>,
+    pub value: U256,
+    pub input: Vec<u8>,
+    pub v: U256,
+    pub r: U256,
+    pub s: U256,
+    pub from: H160,
 }
 
 impl From<StateTxn> for EdgeResponseTxn {
@@ -342,18 +342,18 @@ impl From<StateTxn> for EdgeResponseTxn {
 
 #[derive(Clone, Debug, RlpDecodable)]
 pub struct DynamicTxn {
-    _chain_id: u64,
-    _nonce: u64,
-    _gas_tip: u64,
-    _gas_fee: u64,
-    _gas: u64,
-    _to: Vec<u8>,
-    _value: U256,
-    _input: Vec<u8>,
-    _access_list: Vec<u8>,
-    _v: U256,
-    _r: U256,
-    _s: U256,
+    pub chain_id: u64,
+    pub nonce: u64,
+    pub gas_tip: u64,
+    pub gas_fee: u64,
+    pub gas: u64,
+    pub to: Vec<u8>,
+    pub value: U256,
+    pub input: Vec<u8>,
+    pub access_list: Vec<u8>,
+    pub v: U256,
+    pub r: U256,
+    pub s: U256,
 }
 
 impl From<DynamicTxn> for EdgeResponseTxn {
