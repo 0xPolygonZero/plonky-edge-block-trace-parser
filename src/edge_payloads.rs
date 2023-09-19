@@ -96,7 +96,8 @@ pub struct TxnBytesAndTraces {
 pub struct TxnDelta {
     /// Redundant and can safely be removed from the incoming payload. The
     /// address is already provided as the key in the deltas for a txn.
-    pub(crate) _address: Address,
+    #[allow(dead_code)]
+    pub(crate) address: Address,
 
     /// If the balance changed, then the new balance will appear here.
     #[serde_as(as = "Option<TryFromInto<U256DecWrapper>>")]
