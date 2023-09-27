@@ -1,3 +1,7 @@
 [workspace]
 members = ["parser", "node_adapter"]
 resolver = "2"
+
+[patch.crates-io]
+# TODO: Remove `eth_trie_utils` patch once version `0.7.0` is released...
+eth_trie_utils = { git = "https://github.com/mir-protocol/eth_trie_utils.git", rev = "e9ec4ec2aa2ae976b7c699ef40c1ffc716d87ed5" }
