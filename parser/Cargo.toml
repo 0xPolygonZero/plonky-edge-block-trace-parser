@@ -1,0 +1,29 @@
+[package]
+name = "plonky_edge_block_trace_parser"
+authors = ["Polygon Zero <bgluth@polygon.technology>"]
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ethereum-types = "0.14.1"
+eth_trie_utils = "0.6.0"
+hex = "0.4.3"
+keccak-hash = "0.10.0"
+log = "0.4.19"
+plonky_block_proof_gen = { git = "https://github.com/mir-protocol/plonky-block-proof-gen.git", rev = "82cfa46971f7884de66cce22c3836065f4db447e" }
+plonky2_evm = { git = "https://github.com/mir-protocol/plonky2.git", rev = "0b5ac312c0f9efdcc6d85c10256d2843d42215a2" }
+rlp = "0.5.2"
+rlp-derive = "0.1.0"
+rust_decimal = "1.32.0"
+serde = "1.0.166"
+serde_with = { version = "3.0.0", features = ["base64"] }
+
+# TODO: Replace!
+serde_json = "1.0.106"
+thiserror = "1.0.41"
+
+[patch.crates-io]
+# TODO: Remove `eth_trie_utils` patch once version `0.7.0` is released...
+eth_trie_utils = { git = "https://github.com/mir-protocol/eth_trie_utils.git", rev = "e9ec4ec2aa2ae976b7c699ef40c1ffc716d87ed5" }
