@@ -2,6 +2,14 @@
 members = ["parser", "node_adapter"]
 resolver = "2"
 
+
+[workspace.dependencies]
+serde_json = "1.0.106"
+log = "0.4.19"
+plonky2_evm = { git = "https://github.com/mir-protocol/plonky2.git", rev = "0b5ac312c0f9efdcc6d85c10256d2843d42215a2" }
+rlp = "0.5.2"
+hex = "0.4.3"
+
 [patch.crates-io]
 # TODO: Remove `eth_trie_utils` patch once version `0.7.0` is released...
 eth_trie_utils = { git = "https://github.com/mir-protocol/eth_trie_utils.git", rev = "e9ec4ec2aa2ae976b7c699ef40c1ffc716d87ed5" }
