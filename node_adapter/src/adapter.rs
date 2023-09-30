@@ -1,4 +1,4 @@
-use futures::{future::BoxFuture, TryStream};
+use futures::TryStream;
 
 pub type BlockHeight = u64;
 
@@ -29,5 +29,5 @@ pub trait NodeAdapter {
     type St: TryStream<Item = Self::Trace, Error = Self::Error>;
 
     /// Create a new stream of traces.
-    fn get_stream(&self, config: StreamConfig) -> BoxFuture<'_, Result<Self::St, Self::Error>>;
+    fn get_stream(&self, config: StreamConfig) -> Self::St;
 }

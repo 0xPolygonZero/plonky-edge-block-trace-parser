@@ -2,7 +2,7 @@ use std::{ops::Range, pin::Pin, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
 use backoff::{future::retry, ExponentialBackoffBuilder};
-use futures::{future::BoxFuture, stream::FuturesOrdered, Future, FutureExt, Stream, TryStreamExt};
+use futures::{stream::FuturesOrdered, Future, FutureExt, Stream, TryStreamExt};
 use pin_project::{pin_project, pinned_drop};
 use plonky2_evm::proof::BlockMetadata;
 use plonky_edge_block_trace_parser::edge_payloads::{EdgeBlockResponse, EdgeBlockTrace};
@@ -61,8 +61,7 @@ pub struct EdgeTraceWithMeta {
 ///         .get_stream(StreamConfig {
 ///             buffer_size: 1,
 ///             start_height: 4242,
-///         })
-///         .await?;
+///         });
 ///
 ///     while let Some(block) = stream.next().await {
 ///         match block {
@@ -122,18 +121,18 @@ impl NodeAdapter for EdgeNodeAdapter {
     type Error = anyhow::Error;
     type St = StreamGuard<Self::Trace>;
 
-    fn get_stream(
-        &self,
-        stream_config: StreamConfig,
-    ) -> BoxFuture<'_, Result<Self::St, Self::Error>> {
-        Box::pin(async move {
-            let mut node_tip = self.fetch_cur_node_height().await?;
-            let mut our_tip = stream_config.start_height;
-            let block_time = self.block_time;
-            let (tx, rx) = channel(stream_config.buffer_size);
+    fn get_stream(&self, stream_config: StreamConfig) -> Self::St {
+        let (tx1, rx) = channel(stream_config.buffer_size);
 
-            let this = self.clone();
-            let handle = tokio::spawn(async move {
+        let this = self.clone();
+        let handle = tokio::spawn(async move {
+            let tx2 = tx1.clone();
+
+            let result = async move {
+                let mut node_tip = this.fetch_cur_node_height().await?;
+                let mut our_tip = stream_config.start_height;
+                let block_time = this.block_time;
+
                 loop {
                     // Update our version of the node tip once we've caught up to it.
                     // This is an optimization based on the assumption that processing blocks in the
@@ -143,22 +142,7 @@ impl NodeAdapter for EdgeNodeAdapter {
                     // node tip we've seen.
                     if our_tip >= node_tip {
                         // Attempt to fetch the next node tip.
-                        let next_node_tip = this.fetch_cur_node_height().await;
-
-                        match next_node_tip {
-                            Ok(next_node_tip) => {
-                                // Success, update our tip.
-                                node_tip = next_node_tip;
-                            }
-                            Err(err) => {
-                                // Notify the receiver that we've encountered an error.
-                                let send = tx.send(Err(err)).await;
-                                // If send errors, the receiver has been dropped.
-                                if send.is_err() {
-                                    break;
-                                }
-                            }
-                        }
+                        node_tip = this.fetch_cur_node_height().await?;
 
                         if our_tip >= node_tip {
                             // If the node tip hasn't changed, sleep for the block time.
@@ -167,10 +151,11 @@ impl NodeAdapter for EdgeNodeAdapter {
                         }
                     }
 
-                    let trace_with_meta = this.fetch_trace_with_metadata_for_height(our_tip).await;
+                    let trace_with_meta =
+                        this.fetch_trace_with_metadata_for_height(our_tip).await?;
 
                     // This will block if the buffer is full, waiting until there is space.
-                    let send = tx.send(trace_with_meta.map(|t| (our_tip, t))).await;
+                    let send = tx1.send(Ok((our_tip, trace_with_meta))).await;
                     // If send errors, the receiver has been dropped.
                     if send.is_err() {
                         break;
@@ -179,13 +164,22 @@ impl NodeAdapter for EdgeNodeAdapter {
                     // Increment our tip.
                     our_tip += 1;
                 }
-            });
 
-            Ok(StreamGuard {
-                stream: ReceiverStream::new(rx),
-                handle,
-            })
-        })
+                Ok::<_, Self::Error>(())
+            }
+            .await;
+
+            // If we encountered an error, attempt to notify the receiver.
+            if let Err(e) = result {
+                // If the receiver has been dropped, this will be a no-op.
+                let _ = tx2.send(Err(e)).await;
+            }
+        });
+
+        StreamGuard {
+            stream: ReceiverStream::new(rx),
+            handle,
+        }
     }
 }
 
