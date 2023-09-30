@@ -1,8 +1,29 @@
 [package]
-name = "node_adapter"
+name = "plonky_node_adapter"
 version = "0.1.0"
 edition = "2021"
+authors = ["Polygon Zero <zbrown@polygon.technology>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tonic = "0.10.1"
+prost = "0.12.1"
+tokio = { version = "1.32.0", features = ["time", "sync", "macros"] }
+tokio-stream = "0.1.14"
+pin-project = "1.1.3"
+futures = "0.3.28"
+anyhow = "1.0.75"
+backoff = { version = "0.4.0", features = ["tokio"] }
+plonky_edge_block_trace_parser = { path = "../parser" }
+serde_json = { workspace = true }
+log = { workspace = true }
+plonky2_evm = { workspace = true }
+rlp = { workspace = true }
+hex = { workspace = true }
+
+[build-dependencies]
+tonic-build = "0.10.1"
+
+[dev-dependencies]
+tokio = { version = "1.32.0", features = ["full"] }
