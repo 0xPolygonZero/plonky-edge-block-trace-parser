@@ -1,8 +1,8 @@
-use std::{pin::Pin, time::Duration};
+use std::{ops::Range, pin::Pin, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
 use backoff::{future::retry, ExponentialBackoffBuilder};
-use futures::{future::BoxFuture, Future, Stream};
+use futures::{future::BoxFuture, stream::FuturesOrdered, Future, FutureExt, Stream, TryStreamExt};
 use pin_project::{pin_project, pinned_drop};
 use plonky2_evm::proof::BlockMetadata;
 use plonky_edge_block_trace_parser::edge_payloads::{EdgeBlockResponse, EdgeBlockTrace};
@@ -51,10 +51,11 @@ pub struct EdgeTraceWithMeta {
 /// # use anyhow::Result;
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
-///     let edge = EdgeNodeAdapter::new(EdgeConfig {
+///     let edge = EdgeNodeAdapter::from_config(EdgeConfig {
 ///         remote_uri: "http://[::1]:50051".to_string(),
 ///         ..Default::default()
-///     });
+///     })
+///     .await?;
 ///
 ///     let mut stream = edge
 ///         .get_stream(StreamConfig {
@@ -83,8 +84,8 @@ pub struct EdgeNodeAdapter {
     /// This will be used to determine how long to wait before polling the node
     /// for new block heights if the stream is caught up to the node.
     block_time: Duration,
-    /// The URI of the remote node.
-    remote_uri: String,
+    /// The gRPC client.
+    client: SystemClient<Channel>,
 }
 
 /// A handle to a block stream that will abort the stream when dropped.
@@ -126,12 +127,12 @@ impl NodeAdapter for EdgeNodeAdapter {
         stream_config: StreamConfig,
     ) -> BoxFuture<'_, Result<Self::St, Self::Error>> {
         Box::pin(async move {
-            let client = self.get_client().await?;
-            let mut node_tip = Self::fetch_cur_node_height(client.clone()).await?;
+            let mut node_tip = self.fetch_cur_node_height().await?;
             let mut our_tip = stream_config.start_height;
             let block_time = self.block_time;
             let (tx, rx) = channel(stream_config.buffer_size);
 
+            let this = self.clone();
             let handle = tokio::spawn(async move {
                 loop {
                     // Update our version of the node tip once we've caught up to it.
@@ -142,7 +143,7 @@ impl NodeAdapter for EdgeNodeAdapter {
                     // node tip we've seen.
                     if our_tip >= node_tip {
                         // Attempt to fetch the next node tip.
-                        let next_node_tip = Self::fetch_cur_node_height(client.clone()).await;
+                        let next_node_tip = this.fetch_cur_node_height().await;
 
                         match next_node_tip {
                             Ok(next_node_tip) => {
@@ -166,9 +167,7 @@ impl NodeAdapter for EdgeNodeAdapter {
                         }
                     }
 
-                    let trace_with_meta =
-                        Self::fetch_edge_trace_with_metadata_for_height(client.clone(), our_tip)
-                            .await;
+                    let trace_with_meta = this.fetch_trace_with_metadata_for_height(our_tip).await;
 
                     // This will block if the buffer is full, waiting until there is space.
                     let send = tx.send(trace_with_meta.map(|t| (our_tip, t))).await;
@@ -209,28 +208,24 @@ where
 const EDGE_DEFAULT_BLOCK_TIME: Duration = Duration::from_secs(2);
 
 impl EdgeNodeAdapter {
-    pub fn new(
+    pub async fn from_config(
         EdgeConfig {
             remote_uri,
             block_time,
         }: EdgeConfig,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        Ok(Self {
             block_time: block_time.unwrap_or(EDGE_DEFAULT_BLOCK_TIME),
-            remote_uri,
-        }
-    }
-
-    async fn get_client(&self) -> Result<SystemClient<Channel>> {
-        SystemClient::connect(self.remote_uri.to_string())
-            .await
-            .context("Failed to connect to gRPC node")
+            client: SystemClient::connect(remote_uri)
+                .await
+                .context("Failed to connect to gRPC node")?,
+        })
     }
 
     /// Fetch the current block height from the node.
-    async fn fetch_cur_node_height(client: SystemClient<Channel>) -> Result<BlockHeight> {
+    pub async fn fetch_cur_node_height(&self) -> Result<BlockHeight> {
         with_retry(|| {
-            let mut client = client.clone();
+            let mut client = self.client.clone();
             async move {
                 Ok(client
                     .get_status(())
@@ -252,12 +247,9 @@ impl EdgeNodeAdapter {
     ///
     /// The edge node returns a byte array containing a JSON-encoded trace. This
     /// function deserializes the JSON and returns an [`EdgeBlockTrace`].
-    async fn fetch_trace_for_height(
-        client: SystemClient<Channel>,
-        height: BlockHeight,
-    ) -> Result<EdgeBlockTrace> {
+    pub async fn fetch_trace_for_height(&self, height: BlockHeight) -> Result<EdgeBlockTrace> {
         with_retry(|| {
-            let mut client = client.clone();
+            let mut client = self.client.clone();
             async move {
                 Ok(client
                     .get_trace(system::GetTraceRequest { number: height })
@@ -276,12 +268,9 @@ impl EdgeNodeAdapter {
     ///
     /// The edge node returns an RLP-encoded block metadata payload. This
     /// function decodes the payload and returns the decoded [`BlockMetadata`].
-    async fn fetch_metadata_for_height(
-        client: SystemClient<Channel>,
-        height: BlockHeight,
-    ) -> Result<BlockMetadata> {
+    pub async fn fetch_metadata_for_height(&self, height: BlockHeight) -> Result<BlockMetadata> {
         with_retry(|| {
-            let mut client = client.clone();
+            let mut client = self.client.clone();
             async move {
                 Ok(client
                     .block_by_number(system::BlockByNumberRequest { number: height })
@@ -310,16 +299,74 @@ impl EdgeNodeAdapter {
     ///
     /// This returns a fully decoded and deserialized [`EdgeTraceWithMeta`]
     /// struct.
-    async fn fetch_edge_trace_with_metadata_for_height(
-        client: SystemClient<Channel>,
+    pub async fn fetch_trace_with_metadata_for_height(
+        &self,
         height: BlockHeight,
     ) -> Result<EdgeTraceWithMeta> {
         let (trace, b_meta) = try_join!(
-            Self::fetch_trace_for_height(client.clone(), height),
-            Self::fetch_metadata_for_height(client, height)
+            self.fetch_trace_for_height(height),
+            self.fetch_metadata_for_height(height)
         )
         .context("Failed to join trace and block metadata")?;
 
         Ok(EdgeTraceWithMeta { trace, b_meta })
+    }
+
+    /// Execute an async function that accepts a `BlockHeight` over a range of
+    /// `BlockHeight`s.
+    async fn fetch_fn_for_range<F, Fut, R>(
+        &self,
+        range: Range<BlockHeight>,
+        f: F,
+    ) -> Result<Vec<(BlockHeight, R)>>
+    where
+        Fut: Future<Output = Result<R>>,
+        F: Fn(BlockHeight) -> Fut,
+    {
+        let fs: FuturesOrdered<_> = range
+            .into_iter()
+            .map(|h| f(h).map(move |r| r.map(|x| (h, x))))
+            .collect();
+        fs.try_collect().await
+    }
+
+    /// Fetch the block metadata for the given block height range.
+    ///
+    /// The edge node returns an RLP-encoded block metadata payload. This
+    /// function decodes the payload and returns the decoded [`BlockMetadata`]
+    /// structs.
+    pub async fn fetch_metadata_for_range(
+        &self,
+        range: Range<BlockHeight>,
+    ) -> Result<Vec<(BlockHeight, BlockMetadata)>> {
+        self.fetch_fn_for_range(range, |height| self.fetch_metadata_for_height(height))
+            .await
+    }
+
+    /// Fetch the block trace for the given block height range.
+    ///
+    /// The edge node returns an RLP-encoded block metadata payload. This
+    /// function decodes the payload and returns the decoded [`BlockMetadata`]
+    /// structs.
+    pub async fn fetch_trace_for_range(
+        &self,
+        range: Range<BlockHeight>,
+    ) -> Result<Vec<(BlockHeight, EdgeBlockTrace)>> {
+        self.fetch_fn_for_range(range, |height| self.fetch_trace_for_height(height))
+            .await
+    }
+
+    /// Fetch the trace and metadata for the given block height range.
+    ///
+    /// This returns a fully decoded and deserialized [`EdgeTraceWithMeta`]
+    /// structs.
+    pub async fn fetch_trace_with_metadata_for_range(
+        &self,
+        range: Range<BlockHeight>,
+    ) -> Result<Vec<(BlockHeight, EdgeTraceWithMeta)>> {
+        self.fetch_fn_for_range(range, |height| {
+            self.fetch_trace_with_metadata_for_height(height)
+        })
+        .await
     }
 }
