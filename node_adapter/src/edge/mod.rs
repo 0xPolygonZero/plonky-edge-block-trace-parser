@@ -4,7 +4,6 @@ use anyhow::{anyhow, Context, Result};
 use backoff::{future::retry, ExponentialBackoffBuilder};
 use futures::{stream::FuturesOrdered, Future, FutureExt, Stream, TryStreamExt};
 use pin_project::{pin_project, pinned_drop};
-use plonky2_evm::proof::BlockMetadata;
 use plonky_edge_block_trace_parser::edge_payloads::{EdgeBlockResponse, EdgeBlockTrace};
 use rlp::decode;
 use tokio::{sync::mpsc::channel, task::JoinHandle, try_join};
@@ -32,7 +31,7 @@ pub struct EdgeConfig {
 #[derive(Clone, Debug)]
 pub struct EdgeTraceWithMeta {
     pub trace: EdgeBlockTrace,
-    pub b_meta: BlockMetadata,
+    pub b_meta: EdgeBlockResponse,
 }
 
 /// The edge [`NodeAdapter`].
@@ -262,7 +261,10 @@ impl EdgeNodeAdapter {
     ///
     /// The edge node returns an RLP-encoded block metadata payload. This
     /// function decodes the payload and returns the decoded [`BlockMetadata`].
-    pub async fn fetch_metadata_for_height(&self, height: BlockHeight) -> Result<BlockMetadata> {
+    pub async fn fetch_metadata_for_height(
+        &self,
+        height: BlockHeight,
+    ) -> Result<EdgeBlockResponse> {
         with_retry(|| {
             let mut client = self.client.clone();
             async move {
@@ -272,16 +274,14 @@ impl EdgeNodeAdapter {
                     .map_err(anyhow::Error::from)
                     .and_then(|resp| {
                         let resp = resp.into_inner().data;
-                        decode::<EdgeBlockResponse>(&resp)
-                            .map(|resp| resp.into())
-                            .map_err(|err| {
-                                anyhow!(
-                                    "Parsing block metadata for block {} with err: {} \n({:?})",
-                                    height,
-                                    err,
-                                    hex::encode(&resp)
-                                )
-                            })
+                        decode::<EdgeBlockResponse>(&resp).map_err(|err| {
+                            anyhow!(
+                                "Parsing block metadata for block {} with err: {} \n({:?})",
+                                height,
+                                err,
+                                hex::encode(&resp)
+                            )
+                        })
                     })
                     .context("Failed to fetch block by number")?)
             }
@@ -332,7 +332,7 @@ impl EdgeNodeAdapter {
     pub async fn fetch_metadata_for_range(
         &self,
         range: Range<BlockHeight>,
-    ) -> Result<Vec<(BlockHeight, BlockMetadata)>> {
+    ) -> Result<Vec<(BlockHeight, EdgeBlockResponse)>> {
         self.fetch_fn_for_range(range, |height| self.fetch_metadata_for_height(height))
             .await
     }
