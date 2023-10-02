@@ -245,6 +245,7 @@ pub struct EdgeBlockResponseHeader {
     pub timestamp: u64,
     pub extra_data: Vec<u8>,
     pub mix_hash: H256,
+    pub hash: H256,
     pub nonce: Vec<u8>,
     pub base_fee: u64,
 }
