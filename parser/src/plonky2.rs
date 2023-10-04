@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
+    iter::once,
     str::FromStr,
 };
 
