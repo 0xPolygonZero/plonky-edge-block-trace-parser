@@ -243,6 +243,7 @@ impl EdgeBlockTrace {
                 let txn_partial_tries = Self::create_minimal_partial_tries_needed_by_txn(
                     &block_tries,
                     processed_txn_traces.nodes_used_by_txn,
+                    txn_idx,
                 )?;
 
                 println!("Base storage tries:");
@@ -277,6 +278,16 @@ impl EdgeBlockTrace {
                     processed_txn_traces.deltas,
                     &mut addrs_to_code,
                 )?;
+
+                Self::update_receipt_and_txn_tries(
+                    &mut block_tries.receipt,
+                    &mut block_tries.txn,
+                    txn_trace_info.txn.clone(),
+                    txn_trace_info.receipt,
+                    txn_idx,
+                );
+                assert_eq!(block_tries.receipt.hash(), txn_trace_info.receipt_root);
+                assert_eq!(block_tries.txn.hash(), txn_trace_info.txn_root);
 
                 let trie_roots_after = TrieRoots {
                     state_root: block_tries.state.hash(),
@@ -411,6 +422,8 @@ impl EdgeBlockTrace {
             BlockPartialTries {
                 state: state_trie,
                 storage: acc_storage_tries,
+                receipt: HashedPartialTrie::default(),
+                txn: HashedPartialTrie::default(),
             },
             accounts_to_code,
         ))
@@ -534,6 +547,7 @@ impl EdgeBlockTrace {
     fn create_minimal_partial_tries_needed_by_txn(
         curr_block_tries: &BlockPartialTries,
         nodes_used_by_txn: NodesUsedByTxn,
+        txn_idx: usize,
     ) -> TraceParsingResult<TrieInputs> {
         let subset_state_trie = create_trie_subset(
             &curr_block_tries.state,
@@ -578,13 +592,22 @@ impl EdgeBlockTrace {
 
         Ok(TrieInputs {
             state_trie: subset_state_trie,
-            transactions_trie: HashedPartialTrie::default(), /* TODO: Wait for full node &
-                                                              * Plonky2
-                                                              * support... */
-            receipts_trie: HashedPartialTrie::default(), /* TODO: Wait for full node & Plonky2
-                                                          * support... */
+            transactions_trie: Self::construct_partial_trie_from_idx(
+                &curr_block_tries.receipt,
+                txn_idx,
+            ),
+            receipts_trie: Self::construct_partial_trie_from_idx(&curr_block_tries.txn, txn_idx),
             storage_tries: subset_storage_tries,
         })
+    }
+
+    fn construct_partial_trie_from_idx(
+        full_trie: &HashedPartialTrie,
+        idx: usize,
+    ) -> HashedPartialTrie {
+        // Should be doing better errors here but this is currently just a hack.
+        create_trie_subset(full_trie, once(idx as u64))
+            .expect("Unable to create single element partial trie from an index")
     }
 
     fn apply_deltas_to_trie_state(
@@ -634,6 +657,21 @@ impl EdgeBlockTrace {
         Ok(())
     }
 
+    fn update_receipt_and_txn_tries(
+        receipt_trie: &mut HashedPartialTrie,
+        txn_trie: &mut HashedPartialTrie,
+        receipt_node: Vec<u8>,
+        txn_node: Vec<u8>,
+        txn_idx: usize,
+    ) {
+        Self::add_indexed_node_to_trie(receipt_trie, receipt_node, txn_idx);
+        Self::add_indexed_node_to_trie(txn_trie, txn_node, txn_idx);
+    }
+
+    fn add_indexed_node_to_trie(trie: &mut HashedPartialTrie, node: Vec<u8>, txn_idx: usize) {
+        trie.insert(txn_idx as u64, node)
+    }
+
     pub fn num_txns(&self) -> usize {
         self.txn_bytes_and_traces.len()
     }
@@ -653,6 +691,8 @@ fn update_val_if_some<T>(target: &mut T, opt: Option<T>) {
 struct BlockPartialTries {
     state: HashedPartialTrie,
     storage: HashMap<H256, HashedPartialTrie>,
+    receipt: HashedPartialTrie,
+    txn: HashedPartialTrie,
 }
 
 #[derive(Debug)]

@@ -61,14 +61,11 @@ pub struct TxnBytesAndTraces {
     /// The root of the txn trie after the txn has been executed.
     pub txn_root: H256,
 
-    // ReceiptNodeHash is the hash of the new txn node added by the txn.
-    pub txn_node_bytes: Vec<u8>,
-
     /// The root of the receipt trie after the txn has been executed.
     pub receipt_root: H256,
 
     // ReceiptNodeHash is the hash of the new receipt node added by the txn.
-    pub receipt_node_bytes: Vec<u8>,
+    pub receipt: Vec<u8>,
 
     // GasUsed is the amount of gas used by the transaction
     pub gas_used: u64,
