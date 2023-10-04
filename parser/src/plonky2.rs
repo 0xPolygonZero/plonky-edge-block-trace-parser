@@ -323,16 +323,49 @@ impl EdgeBlockTrace {
             .collect::<TraceParsingResult<Vec<_>>>()?;
 
         Ok(match tx_proof_gen_ir.len() {
-            0 => vec![
-                TxnProofGenIR::create_dummy(b_height, 0),
-                TxnProofGenIR::create_dummy(b_height, 1),
-            ],
+            0 => {
+                let (mut receipt_trie, mut txn_trie) =
+                    (HashedPartialTrie::default(), HashedPartialTrie::default());
+                let dummy_txn_0 = Self::update_txn_receipt_tries_and_create_dummy_txn(
+                    &mut receipt_trie,
+                    &mut txn_trie,
+                    b_height,
+                    0,
+                );
+                let dummy_txn_1 = Self::update_txn_receipt_tries_and_create_dummy_txn(
+                    &mut receipt_trie,
+                    &mut txn_trie,
+                    b_height,
+                    1,
+                );
+
+                vec![dummy_txn_0, dummy_txn_1]
+            }
             1 => {
-                tx_proof_gen_ir.push(tx_proof_gen_ir[0].dummy_with_at(b_height, 1));
+                let (mut receipt_trie, mut txn_trie) =
+                    (HashedPartialTrie::default(), HashedPartialTrie::default());
+                let dummy_txn = Self::update_txn_receipt_tries_and_create_dummy_txn(
+                    &mut receipt_trie,
+                    &mut txn_trie,
+                    b_height,
+                    1,
+                );
+
+                tx_proof_gen_ir.push(dummy_txn);
                 tx_proof_gen_ir
             }
             _ => tx_proof_gen_ir,
         })
+    }
+
+    fn update_txn_receipt_tries_and_create_dummy_txn(
+        receipt_trie: &mut HashedPartialTrie,
+        txn_trie: &mut HashedPartialTrie,
+        b_height: BlockHeight,
+        txn_idx: usize,
+    ) -> TxnProofGenIR {
+        Self::update_receipt_and_txn_tries(receipt_trie, txn_trie, vec![], vec![], txn_idx);
+        TxnProofGenIR::create_dummy(b_height, txn_idx, receipt_trie, txn_trie).unwrap()
     }
 
     /// Edge gives us contract bytecode that was accessed
