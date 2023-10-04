@@ -230,7 +230,8 @@ impl EdgeBlockTrace {
         let mut gas_used_before = 0;
         let mut block_bloom_before = [U256::zero(); 8];
 
-        self.txn_bytes_and_traces
+        let mut tx_proof_gen_ir = self
+            .txn_bytes_and_traces
             .into_iter()
             .enumerate()
             .map(move |(txn_idx, txn_trace_info)| {
@@ -307,7 +308,19 @@ impl EdgeBlockTrace {
 
                 Ok(payload)
             })
-            .collect()
+            .collect::<TraceParsingResult<Vec<_>>>()?;
+
+        Ok(match tx_proof_gen_ir.len() {
+            0 => vec![
+                TxnProofGenIR::create_dummy(b_height, 0),
+                TxnProofGenIR::create_dummy(b_height, 1),
+            ],
+            1 => {
+                tx_proof_gen_ir.push(tx_proof_gen_ir[0].clone_as(b_height, 1));
+                tx_proof_gen_ir
+            }
+            _ => tx_proof_gen_ir,
+        })
     }
 
     /// Edge gives us contract bytecode that was accessed
