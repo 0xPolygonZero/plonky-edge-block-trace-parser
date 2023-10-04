@@ -61,13 +61,20 @@ pub struct TxnBytesAndTraces {
     /// The root of the txn trie after the txn has been executed.
     pub txn_root: H256,
 
+    // ReceiptNodeHash is the hash of the new txn node added by the txn.
+    pub txn_node_bytes: Vec<u8>,
+
     /// The root of the receipt trie after the txn has been executed.
     pub receipt_root: H256,
+
+    // ReceiptNodeHash is the hash of the new receipt node added by the txn.
+    pub receipt_node_bytes: Vec<u8>,
 
     // GasUsed is the amount of gas used by the transaction
     pub gas_used: u64,
 
     // Bloom is the bloom filter for the transaction
+    #[serde_as(as = "FromInto<BloomWrapper>")]
     pub bloom: [U256; 8],
 
     #[serde(rename(deserialize = "delta"))]
@@ -183,14 +190,14 @@ fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D:
         where
             E: Error,
         {
-            FromHex::from_hex(Self::remove_prefix_if_present(data)).map_err(Error::custom)
+            FromHex::from_hex(remove_hex_prefix_if_present(data)).map_err(Error::custom)
         }
 
         fn visit_borrowed_str<E>(self, data: &'de str) -> Result<Self::Value, E>
         where
             E: Error,
         {
-            FromHex::from_hex(Self::remove_prefix_if_present(data)).map_err(Error::custom)
+            FromHex::from_hex(remove_hex_prefix_if_present(data)).map_err(Error::custom)
         }
 
         fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -198,18 +205,33 @@ fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D:
         }
     }
 
-    impl PrefixHexStrVisitor {
-        fn remove_prefix_if_present(data: &str) -> &str {
-            let prefix = &data[..2];
-
-            match matches!(prefix, "0x" | "0X") {
-                false => data,
-                true => &data[2..],
-            }
-        }
-    }
-
     deserializer.deserialize_string(PrefixHexStrVisitor())
+}
+
+#[derive(Debug, Deserialize)]
+struct BloomWrapper(String);
+
+impl From<BloomWrapper> for [U256; 8] {
+    fn from(v: BloomWrapper) -> Self {
+        let bytes = hex::decode(remove_hex_prefix_if_present(&v.0)).unwrap();
+        let mut bloom = [U256::zero(); 8];
+
+        // Note that bloom can be empty.
+        for (i, v) in bytes.into_iter().array_chunks::<32>().enumerate() {
+            bloom[i] = U256::from_big_endian(v.as_slice());
+        }
+
+        bloom
+    }
+}
+
+fn remove_hex_prefix_if_present(data: &str) -> &str {
+    let prefix = &data[..2];
+
+    match matches!(prefix, "0x" | "0X") {
+        false => data,
+        true => &data[2..],
+    }
 }
 
 #[derive(Clone, Debug)]
