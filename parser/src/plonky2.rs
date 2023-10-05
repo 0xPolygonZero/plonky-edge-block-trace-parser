@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
     iter::once,
-    str::FromStr,
+    str::FromStr, ops::Deref,
 };
 
 use eth_trie_utils::{
@@ -328,7 +328,7 @@ impl EdgeBlockTrace {
                 TxnProofGenIR::create_dummy(b_height, 1),
             ],
             1 => {
-                tx_proof_gen_ir.push(tx_proof_gen_ir[0].dummy_with_at(b_height, 1));
+                tx_proof_gen_ir.push(tx_proof_gen_ir[0].dummy_with_at(b_height, 1,));
                 tx_proof_gen_ir
             }
             _ => tx_proof_gen_ir,
@@ -670,7 +670,7 @@ impl EdgeBlockTrace {
     }
 
     fn add_indexed_node_to_trie(trie: &mut HashedPartialTrie, node: Vec<u8>, txn_idx: usize) {
-        trie.insert(txn_idx as u64, node)
+        trie.insert(txn_idx as u64, rlp::encode(&node).deref())
     }
 
     pub fn num_txns(&self) -> usize {
