@@ -109,6 +109,7 @@ impl From<EdgeBlockResponse> for BlockMetadata {
             block_timestamp: v.header.timestamp.into(),
             block_number: v.header.number.into(),
             block_difficulty: v.header.difficulty.into(),
+            block_random: v.header.mix_hash,
             block_gaslimit: v.header.gas_limit.into(),
             block_chain_id: MATIC_CHAIN_ID.into(),
             block_base_fee: v.header.base_fee.into(),

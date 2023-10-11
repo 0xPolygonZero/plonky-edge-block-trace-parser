@@ -12,7 +12,7 @@ eth_trie_utils = "0.6.0"
 hex = { workspace = true }
 keccak-hash = "0.10.0"
 log = { workspace = true }
-plonky_block_proof_gen = { git = "https://github.com/mir-protocol/plonky-block-proof-gen.git", rev = "6a64f9be4616931c042aaf932d2483529e1db9bf" }
+plonky_block_proof_gen = { git = "https://github.com/mir-protocol/plonky-block-proof-gen.git", rev = "73c3bcbaf3bfe913641c5b6817bc3ba5aa9859bc" }
 plonky2_evm = { workspace = true }
 rlp = { workspace = true }
 rlp-derive = "0.1.0"
