@@ -65,6 +65,7 @@ pub struct TxnBytesAndTraces {
     pub receipt_root: H256,
 
     // ReceiptNodeHash is the hash of the new receipt node added by the txn.
+    #[serde_as(as = "FromInto<ByteString>")]
     pub receipt: Vec<u8>,
 
     // GasUsed is the amount of gas used by the transaction
