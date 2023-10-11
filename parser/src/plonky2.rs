@@ -2,7 +2,8 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
     iter::once,
-    str::FromStr, ops::Deref,
+    ops::Deref,
+    str::FromStr,
 };
 
 use eth_trie_utils::{
@@ -328,7 +329,7 @@ impl EdgeBlockTrace {
                 TxnProofGenIR::create_dummy(b_height, 1),
             ],
             1 => {
-                tx_proof_gen_ir.push(tx_proof_gen_ir[0].dummy_with_at(b_height, 1,));
+                tx_proof_gen_ir.push(tx_proof_gen_ir[0].dummy_with_at(b_height, 1));
                 tx_proof_gen_ir
             }
             _ => tx_proof_gen_ir,
