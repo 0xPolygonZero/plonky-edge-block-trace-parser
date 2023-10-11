@@ -231,7 +231,7 @@ fn remove_hex_prefix_if_present(data: &str) -> &str {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct EdgeBlockResponse {
     pub header: EdgeBlockResponseHeader,
     pub txns: Vec<EdgeResponseTxn>,
@@ -248,7 +248,7 @@ impl Decodable for EdgeBlockResponse {
     }
 }
 
-#[derive(Clone, Debug, RlpDecodable)]
+#[derive(Clone, Debug, RlpDecodable, Deserialize)]
 pub struct EdgeBlockResponseHeader {
     pub parent_hash: H256,
     pub sha3_uncles: H256,
@@ -268,7 +268,7 @@ pub struct EdgeBlockResponseHeader {
     pub base_fee: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum EdgeResponseTxn {
     Legacy(LegacyTxn),
     State(StateTxn),
@@ -321,7 +321,7 @@ fn txn_stream_iter_next<'a>(rlp_iter: &'a mut RlpIterator) -> Result<Rlp<'a>, De
 #[derive(Debug, RlpDecodableWrapper)]
 struct TxnType(u8);
 
-#[derive(Clone, Debug, RlpDecodable)]
+#[derive(Clone, Debug, RlpDecodable, Deserialize)]
 pub struct LegacyTxn {
     pub nonce: u64,
     pub gas_price: U256,
@@ -340,7 +340,7 @@ impl From<LegacyTxn> for EdgeResponseTxn {
     }
 }
 
-#[derive(Clone, Debug, RlpDecodable)]
+#[derive(Clone, Debug, RlpDecodable, Deserialize)]
 pub struct StateTxn {
     pub nonce: u64,
     pub gas_price: u64,
@@ -360,7 +360,7 @@ impl From<StateTxn> for EdgeResponseTxn {
     }
 }
 
-#[derive(Clone, Debug, RlpDecodable)]
+#[derive(Clone, Debug, RlpDecodable, Deserialize)]
 pub struct DynamicTxn {
     pub chain_id: u64,
     pub nonce: u64,
