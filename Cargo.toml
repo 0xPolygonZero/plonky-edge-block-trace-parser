@@ -6,10 +6,10 @@ resolver = "2"
 [workspace.dependencies]
 serde_json = "1.0.106"
 log = "0.4.19"
-plonky2_evm = { git = "https://github.com/mir-protocol/plonky2.git", rev = "762e6f07b834df04be8cd290f07465a28c392c6d" }
+plonky2_evm = { git = "https://github.com/0xPolygonZero/plonky2.git", rev = "762e6f07b834df04be8cd290f07465a28c392c6d" }
 rlp = "0.5.2"
 hex = "0.4.3"
 
 [patch.crates-io]
 # TODO: Remove `eth_trie_utils` patch once version `0.7.0` is released...
-eth_trie_utils = { git = "https://github.com/mir-protocol/eth_trie_utils.git", rev = "e9ec4ec2aa2ae976b7c699ef40c1ffc716d87ed5" }
+eth_trie_utils = { git = "https://github.com/0xPolygonZero/eth_trie_utils.git", rev = "e9ec4ec2aa2ae976b7c699ef40c1ffc716d87ed5" }
